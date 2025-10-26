@@ -30,6 +30,7 @@ GitHub
 Below is a summary:
 
 Feature #	Script File	Purpose
+
 1	1_Product_Analyzer.py	Ingredient Compatibility Scanner: allows user to input a product list and checks for harmful/incompatible combinations among the ingredients. 
 GitHub
 
