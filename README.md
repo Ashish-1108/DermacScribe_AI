@@ -1,4 +1,4 @@
-Dermascribe 
+**Dermascribe** 
 Dermascribe is an intelligent, multi-feature skincare advisor built with Python and Streamlit. It's designed to combat the confusion of the modern skincare market by providing personalized, data-driven guidance.
 The Problem: Consumers often follow skincare trends blindly, risking harmful ingredient reactions and using ineffective products due to a lack of personalized, data-driven guidance.
 Dermascribe addresses this by moving from "guessing" to "knowing" with a suite of powerful analytical tools.
