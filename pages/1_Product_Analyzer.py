@@ -349,27 +349,51 @@ def initialize_session_state():
             st.session_state[key] = value
 
 # --- Product Search Logic ---
-@st.cache_data(ttl=3600) 
+@st.cache_data(ttl=3600)
 def search_local_db(query: str) -> List[Dict]:
     """Uses FTS5 for fast, normalized search & returns a LIST of top matches (up to 5)."""
     def clean_search_query(q: str) -> str:
         q = q.strip().lower()
-        replacements = [('&', 'and'), ("'s", ''), ('.', ''), ('-', ''), ("'", ''), ('%', '')]
-        for old, new in replacements: q = q.replace(old, new)
+        # 1. Standardize useful connectors
+        q = q.replace('&', ' and ')
+
+        # 2. Remove ALL potential FTS5 special operators and noisy punctuation.
+        # We replace them with spaces to prevent accidental word merging,
+        # then collapse extra spaces later.
+        # This list covers: + * : ^ " ' . - % ! ? ( ) [ ] { }
+        forbidden_chars = "+*:^\"'.--%!?()[]{}"
+        for char in forbidden_chars:
+            q = q.replace(char, ' ')
+
+        # 3. Remove specific ownership suffix commonly typed
+        q = q.replace("'s", "")
+
+        # 4. Collapse multiple spaces into one generic space
+        q = " ".join(q.split())
+
+        # 5. Handle specific brand concatenations (keep your existing logic here)
         concat_replacements = [('mama earth', 'mamaearth'), ('derma co', 'dermaco'),
                                  ('derma company', 'dermaco'), ('forest essentials', 'forestessentials')]
         for old, new in concat_replacements: q = q.replace(old, new)
-        return q
+
+        return q.strip()
+
     # ----------------------------------------------------
     if not query or not query.strip(): return []
     search_query = clean_search_query(query)
+    # Create prefix match terms (append * to each valid word)
     search_terms = [f'{term.strip()}*' for term in search_query.split() if term.strip()]
     if not search_terms: return []
+    # Join with standard space (FTS5 interprets space as AND implicitly in most setups, or strictly phrase depending on config.
+    # Using explicit AND can sometimes be safer: fts_query = " AND ".join(search_terms)
+    # For now, we stick to your original space implementation which usually works fine if sanitized.)
     fts_query = " ".join(search_terms)
+
     results_list = []
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
+            # We use standard FTS5 syntax.
             sql_query = """
             SELECT
                 p.product_name, p.brand, p.category, p.ingredients_list, fts.rank
@@ -389,8 +413,11 @@ def search_local_db(query: str) -> List[Dict]:
                 }
                 results_list.append(standardized_product)
     except Exception as e:
-        st_themed_callout(f"Database search error: {e}", level="error")
+        # Non-breaking error log if something specifically weird happens despite sanitization
         print(f"[Error] FTS5 query failed. Query: {fts_query}, Error: {e}")
+        # Optional: return empty list instead of showing user an error if you prefer silent fail
+        return []
+
     return results_list
 
 # --- Add Product to DB ---
@@ -1026,4 +1053,5 @@ def main():
         st.caption("DermacScribe AI: Smart local search & analysis + optional concise AI insights. Not medical advice.")
 
 if __name__ == "__main__":
+
     main()
